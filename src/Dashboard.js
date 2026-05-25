@@ -100,10 +100,11 @@ function Dashboard({ user }) {
     setAssignments(data);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchAssignments();
     fetchGoals();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addAssignment = async () => {
     if (!title || !dueDate || !subject) return;
