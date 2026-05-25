@@ -3,6 +3,8 @@ import { auth, db } from "./firebase";
 import { signOut } from "firebase/auth";
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 
+
+
 function PomodoroTimer() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
@@ -58,6 +60,38 @@ function Dashboard({ user }) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [subject, setSubject] = useState("");
+  const [goal, setGoal] = useState("");
+  const [goals, setGoals] = useState([]);
+
+
+  const fetchGoals = async () => {
+    const q = query(collection(db, "goals"), where("uid", "==", user.uid));
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setGoals(data);
+  };
+
+  const addGoal = async () => {
+    if (!goal) return;
+    await addDoc(collection(db, "goals"), {
+      text: goal,
+      completed: false,
+      uid: user.uid,
+    });
+    setGoal("");
+    fetchGoals();
+  };
+
+  const completeGoal = async (id, current) => {
+    const { updateDoc } = await import("firebase/firestore");
+    await updateDoc(doc(db, "goals", id), { completed: !current });
+    fetchGoals();
+  };
+
+  const deleteGoal = async (id) => {
+    await deleteDoc(doc(db, "goals", id));
+    fetchGoals();
+  };
 
   const fetchAssignments = async () => {
     const q = query(collection(db, "assignments"), where("uid", "==", user.uid));
@@ -68,6 +102,7 @@ function Dashboard({ user }) {
 
   useEffect(() => {
     fetchAssignments();
+    fetchGoals();
   }, []);
 
   const addAssignment = async () => {
@@ -136,6 +171,42 @@ function Dashboard({ user }) {
           </button>
         </div>
       </div>
+
+        {/* Daily Goals */}
+      <div style={{ backgroundColor: '#111', border: '1px solid #00bfff', borderRadius: '12px', padding: '24px', marginBottom: '30px' }}>
+        <h2 style={{ color: '#00bfff', marginBottom: '20px' }}>🎯 Daily Goals</h2>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <input
+            placeholder="Add a goal for today..."
+            value={goal}
+            onChange={e => setGoal(e.target.value)}
+            style={{ backgroundColor: '#1a1a1a', border: '1px solid #333', color: 'white', padding: '10px', borderRadius: '6px', flex: '1' }}
+          />
+          <button onClick={addGoal}
+            style={{ backgroundColor: '#00bfff', color: '#000', padding: '10px 24px', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
+            Add
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {goals.length === 0 && <p style={{ color: '#aaaaaa' }}>No goals yet. Add one above!</p>}
+          {goals.map(g => (
+            <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1a1a', padding: '12px', borderRadius: '8px' }}>
+              <span style={{ color: g.completed ? '#aaaaaa' : 'white', textDecoration: g.completed ? 'line-through' : 'none' }}>{g.text}</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => completeGoal(g.id, g.completed)}
+                  style={{ backgroundColor: g.completed ? '#333' : '#00bfff', color: g.completed ? '#aaa' : '#000', padding: '6px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {g.completed ? 'Undo' : 'Done'}
+                </button>
+                <button onClick={() => deleteGoal(g.id)}
+                  style={{ backgroundColor: 'transparent', border: '1px solid red', color: 'red', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' }}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
         {/* Pomodoro Timer */}
       <div style={{ backgroundColor: '#111', border: '1px solid #00bfff', borderRadius: '12px', padding: '24px', marginBottom: '30px' }}>
         <h2 style={{ color: '#00bfff', marginBottom: '20px' }}>⏱ Pomodoro Timer</h2>
